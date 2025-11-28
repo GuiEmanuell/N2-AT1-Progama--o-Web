@@ -1,79 +1,84 @@
-// cadastro do formulário
+//cadastro
 document.getElementById('registerForm').addEventListener('submit', async function(event) {
     event.preventDefault();
 
     const name = document.getElementById('reg-nome').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const password = document.getElementById('reg-senha').value.trim();
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const password = document.getElementById('reg-senha').value;
+    const perfil = document.getElementById('perfil').value;
     const message = document.getElementById('message');
 
     message.textContent = '';
     message.className = '';
 
-    if (!name || !email || !password) {
-        message.textContent = 'Preencha todos os campos.';
-        message.className = 'msg error';
-        return;
+    if (!name || !email || !password || !perfil) {
+        return mostrarErro('Preencha todos os campos obrigatórios!');
+    }
+
+    if (name.length < 3) {
+        return mostrarErro('O nome deve ter pelo menos 3 caracteres.');
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+        return mostrarErro('Digite um e-mail válido (ex: usuario@dominio.com)');
     }
 
     if (password.length < 6) {
-        message.textContent = 'A senha deve ter pelo menos 6 caracteres.';
-        message.className = 'msg error';
-        return;
+        return mostrarErro('A senha deve ter no mínimo 6 caracteres.');
     }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
-        message.textContent = 'E-mail inválido.';
-        message.className = 'msg error';
-        return;
+    if (!['leitor', 'bibliotecario'].includes(perfil)) {
+        return mostrarErro('Selecione um perfil válido.');
     }
-
-   
-    const payload = { name, email, password };
-    console.log('Enviando para o backend:', payload);
 
     try {
         const response = await fetch('/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ name, email, password, perfil })
         });
 
         const data = await response.json();
-        console.log('Resposta do servidor:', data);
 
         if (response.ok) {
-            message.textContent = data.message || 'Cadastro realizado com sucesso.';
-            message.className = 'msg success';
+            mostrarSucesso(data.message || 'Cadastro realizado com sucesso!');
             document.getElementById('registerForm').reset();
         } else {
-            message.textContent = data.message || 'Erro ao cadastrar.';
-            message.className = 'msg error';
+            mostrarErro(data.message || 'Erro ao cadastrar. Tente novamente.');
         }
     } catch (err) {
-        console.error('Erro no fetch:', err);
-        message.textContent = 'Erro de conexão. Verifique o servidor.';
+        console.error('Erro no cadastro:', err);
+        mostrarErro('Erro de conexão. Verifique se o servidor está rodando.');
+    }
+
+    function mostrarErro(texto) {
+        message.textContent = texto;
         message.className = 'msg error';
+    }
+
+    function mostrarSucesso(texto) {
+        message.textContent = texto;
+        message.className = 'msg success';
     }
 });
 
-
-// login do formulário
-
+//login
 document.getElementById('loginForm').addEventListener('submit', async function (event) {
     event.preventDefault();
 
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('senha').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    const password = document.getElementById('senha').value;
     const message = document.getElementById('message');
 
     message.textContent = '';
     message.className = '';
 
     if (!email || !password) {
-        message.textContent = 'Preencha todos os campos.';
-        message.classList.add('error');
-        return;
+        return mostrarMensagem('Preencha e-mail e senha!', 'error');
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+        return mostrarMensagem('E-mail inválido!', 'error');
     }
 
     try {
@@ -85,22 +90,30 @@ document.getElementById('loginForm').addEventListener('submit', async function (
 
         const data = await response.json();
 
-        if (response.ok) {
-            message.textContent = data.message || 'Login realizado com sucesso!';
-            message.classList.add('success');
+        if (response.ok && data.success && data.user) {
+            localStorage.setItem('usuario', JSON.stringify(data.user));
+
+            mostrarMensagem('Login realizado com sucesso! Redirecionando...', 'success');
 
             setTimeout(() => {
-                window.location.href = 'index.html'; 
+                if (data.user.perfil === 'bibliotecario') {
+                    window.location.href = 'bibliotecario.html';
+                } else {
+                    window.location.href = 'leitor.html';
+                }
             }, 1000);
 
         } else {
-            message.classList.add('error');
-            message.textContent = data.message || 'E-mail ou senha incorretos.';
+            mostrarMensagem(data.message || 'E-mail ou senha incorretos.', 'error');
         }
 
     } catch (error) {
-        console.error('Erro:', error);
-        message.classList.add('error');
-        message.textContent = 'Erro de conexão. Verifique o servidor.';
+        console.error('Erro no login:', error);
+        mostrarMensagem('Erro de conexão com o servidor.', 'error');
+    }
+
+    function mostrarMensagem(texto, tipo) {
+        message.textContent = texto;
+        message.className = `msg ${tipo}`;
     }
 });
